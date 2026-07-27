@@ -50,17 +50,71 @@ class Bank:
 
             validation_res = self.validate_account(username, password)
             if validation_res is None:
-                print(f"Login Failed, try again...")
+                try_again_input = input("Login failed. Press t to try again or press x to exit the program")
+
+                if try_again_input.lower() == "x":
+                    return None
             else:
-                print(f"Login Successful, hellow")
+                print(f"Login Successful, hello ")
                 logged_in = True
+
+
+
+
+    def CustomerMenu(self, account_object):
+        print("Please choose one of the options below by entering the appropriate letter")
+        print("d: Deposit money")
+        print("w: Withdraw money")
+        print("i: Account info")
+        print("b: Current Balance")
+        print("x: Exit program")
+
+        user_input = input()
+
+        match user_input:
+            case "d":
+                has_deposited = False
+                while not has_deposited:
+                    deposit_amount = int(input("Please enter the amount to deposit. Please deposit a non-negative amount:"))
+                    is_successful_deposit = account_object.deposit(deposit_amount)
+
+                    if is_successful_deposit:
+                        has_deposited = True
+            case "w":
+                has_withdrawn = False
+
+                while not has_withdrawn:
+                    deposit_amount = int(input("Please enter the amount to withdraw. Please withdraw a non-negative amount:"))
+                    is_successful_withdraw = account_object.withdraw(deposit_amount)
+
+                    if is_successful_withdraw:
+                        has_withdrawn = True
+            case "i":
+                account_object.get_account_details()
+            case "b":
+                print(f"Balance: ${account_object.get_balance()}")
+            case "x":
+                return None
+            case _:
+                print("Incorrect letter entered, please enter a valid letter option")
+
+
+
+    def AdminMenu(self, account_object):
+        pass
+
+
+
 
 
 
 
 
 def main():
-    print("Hello World")
+    bank = Bank("Super Bank")
+    bank.start_message()
+
+
 
 
 if __name__ == "__main__":

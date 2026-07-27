@@ -9,6 +9,8 @@
 # Authenticate user, check
 
 import User
+import UserActions
+import AdminActions
 
 class Bank:
     def __init__(self, bank_name):
@@ -16,10 +18,16 @@ class Bank:
         self.__accounts_map = {} #key = username, password = user object
         self.bank_name = bank_name
 
-    def start_message(self):
+    def start(self):
         print("----------------")
         print(f"Welcome to the {self.bank_name}")
-        self.Login()
+        login_object = self.login()
+
+        if login_object is not None:
+            if login_object.is_admin:
+                AdminActions.admin_menu(self)
+            else:
+                UserActions.customer_menu(login_object)
 
     def create_user(self, username, password, first_name, is_admin):
         #Should check to make sure username is unique, will do if time
@@ -29,6 +37,22 @@ class Bank:
         else:
             self.__accounts_map[username] = User.CustomerAccount(username, password, first_name, len(self.__credential_map), is_admin, 0)
 
+    def get_user_by_name(self, username):
+        if username in self.__accounts_map:
+            return self.__accounts_map.get(username)
+        else:
+            print("Incorrect username given. Please enter a username that exists.")
+
+    def get_user_by_id(self, user_id):
+        for user_object in self.__accounts_map.values():
+            if user_object.id == user_id:
+                return user_object
+
+        print("Incorrect id given. Please enter an id that exists.")
+
+    def get_account_map(self):
+        return self.__accounts_map
+
     def validate_account(self, username, password):
         if username in self.__credential_map:
             if password == self.__credential_map.get(username):
@@ -36,72 +60,28 @@ class Bank:
             else:
                 return None
 
-    def Login(self):
-        logged_in = False
-        while not logged_in:
+    def login(self):
+        while True:
             username = input("Please enter your username:")
             while username == "":
-                username = input("Invalid username, please enter your username:")
+                username = input("Please enter your username (do not enter blank username):")
 
             password = input("Please enter your password:")
 
             while password == "":
-                password = input("Invalid password, Please enter your password:")
+                password = input("Please enter your password (do not enter blank password):")
 
-            validation_res = self.validate_account(username, password)
-            if validation_res is None:
+            res_object = self.validate_account(username, password)
+            if res_object is None:
                 try_again_input = input("Login failed. Press t to try again or press x to exit the program")
 
                 if try_again_input.lower() == "x":
                     return None
             else:
-                print(f"Login Successful, hello ")
-                logged_in = True
+                print(f"Login Successful, hello {res_object.first_name}")
+                return res_object
 
 
-
-
-    def CustomerMenu(self, account_object):
-        print("Please choose one of the options below by entering the appropriate letter")
-        print("d: Deposit money")
-        print("w: Withdraw money")
-        print("i: Account info")
-        print("b: Current Balance")
-        print("x: Exit program")
-
-        user_input = input()
-
-        match user_input:
-            case "d":
-                has_deposited = False
-                while not has_deposited:
-                    deposit_amount = int(input("Please enter the amount to deposit. Please deposit a non-negative amount:"))
-                    is_successful_deposit = account_object.deposit(deposit_amount)
-
-                    if is_successful_deposit:
-                        has_deposited = True
-            case "w":
-                has_withdrawn = False
-
-                while not has_withdrawn:
-                    deposit_amount = int(input("Please enter the amount to withdraw. Please withdraw a non-negative amount:"))
-                    is_successful_withdraw = account_object.withdraw(deposit_amount)
-
-                    if is_successful_withdraw:
-                        has_withdrawn = True
-            case "i":
-                account_object.get_account_details()
-            case "b":
-                print(f"Balance: ${account_object.get_balance()}")
-            case "x":
-                return None
-            case _:
-                print("Incorrect letter entered, please enter a valid letter option")
-
-
-
-    def AdminMenu(self, account_object):
-        pass
 
 
 
@@ -112,7 +92,9 @@ class Bank:
 
 def main():
     bank = Bank("Super Bank")
-    bank.start_message()
+    bank.create_user("test_user", "password", "Andrew", False)
+    bank.create_user("admin", "admin", "Jon", True)
+    bank.start()
 
 
 

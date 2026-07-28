@@ -11,7 +11,7 @@ class User:
         self.is_admin = is_admin
 
     def get_account_details(self):
-        return f'username: {self.username}, name: {self.first_name}'
+        return f'username: {self.username}, name: {self.first_name}, id: {self.id}'
 
 class CustomerAccount(User):
     def __init__(self, username, password, first_name, user_id, is_admin, initial_balance):
@@ -42,7 +42,4 @@ class CustomerAccount(User):
 class AdminAccount(User):
     def __init__(self, username, password, first_name, user_id, is_admin):
         super().__init__(username, password, first_name, user_id, is_admin)
-
-    def get_all_accounts(self):
-        pass
 

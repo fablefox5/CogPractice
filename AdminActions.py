@@ -12,11 +12,7 @@ def admin_menu(bank):
 
         match user_input.lower():
             case "a":
-                print("\nAll users: (username | first name | balance | is admin?")
-                for user_object in bank.get_account_map().values():
-                    balance = getattr(user_object, "balance", "NaN")
-                    print(f"{user_object.username} | {user_object.first_name} | {balance} | {user_object.is_admin}")
-                print("")
+                print_all_users(bank)
             case "c":
                 #Ideally check to make sure username doesn't exist already - NOTE: THIS IS NOT THE CASE YET
                 user_details_string = input("Enter user details in comma separated list in format: (username, password, first_name, is_admin)")
@@ -39,3 +35,12 @@ def admin_menu(bank):
                 break
             case _:
                 print("Incorrect letter entered, please enter a valid letter option")
+
+
+def print_all_users(bank):
+    print("\nAll users: (id | username | first name | balance | is admin?")
+    for user_object in bank.get_account_map().values():
+        balance = getattr(user_object, "balance", "NaN")
+        print(
+            f"{user_object.id} | {user_object.username} | {user_object.first_name} | {balance} | {user_object.is_admin}")
+    print("")

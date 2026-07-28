@@ -37,6 +37,19 @@ class Bank:
         else:
             self.__accounts_map[username] = User.CustomerAccount(username, password, first_name, len(self.__credential_map), is_admin, 0)
 
+    def remove_user_by_name(self, username):
+        if username in self.__accounts_map:
+            self.__accounts_map.pop(username)
+        else:
+            print("Incorrect username given. Please enter a username that exists.")
+
+    def get_user_by_id(self, user_id):
+        for username, user_object in self.__accounts_map:
+            if user_object.id == user_id:
+                self.__accounts_map.pop(username)
+
+        print("Incorrect id given. Please enter an id that exists.")
+
     def get_user_by_name(self, username):
         if username in self.__accounts_map:
             return self.__accounts_map.get(username)

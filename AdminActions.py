@@ -30,7 +30,13 @@ def admin_menu(bank):
             case "u":
                 pass
             case "d":
-                pass
+                # Assumes admin put in correct username or id, should check to make sure - NOTE: THIS IS NOT THE CASE YET
+                user_identifier = input("Please enter the username or the id number of the user you want to get:")
+
+                if user_identifier.isnumeric():
+                    print(bank.remove_user_by_id(int(user_identifier)).get_account_details())
+                elif user_identifier:
+                    print(bank.remove_user_by_name(user_identifier).get_account_details())
             case "x":
                 break
             case _:

@@ -16,11 +16,7 @@ def decimal_to_decimal128(value):
 
 DecimalType = Annotated[Decimal,
 BeforeValidator(decimal128_to_decimal),
-PlainSerializer(lambda v: float(v), return_type=float, when_used="json"),
-PlainSerializer(
-        decimal_to_decimal128,
-        when_used="unless-none"
-    )
+PlainSerializer(lambda v: float(v), return_type=float, when_used="always"),
 ]
 
 def current_time():
@@ -33,7 +29,8 @@ class Account(BaseModel):
     account_type: str = Field(max_length=50)
     created_at: datetime = Field(default_factory=current_time)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
 
 class AccountUpdateRequest(BaseModel):
     account_id: int = None
@@ -57,10 +54,23 @@ class DepositResponse(BaseModel):
     new_balance: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
 
 class User(BaseModel):
-    user_id: int
+    user_id: int = None
+    username: str = Field(min_length=5, max_length=20)
+    password: str = Field(min_length=8, max_length=20)
     name: str = Field(max_length=100)
     email: str = Field(max_length=100)
+    is_admin: bool = False
     created_at: datetime = Field(default_factory=current_time)
+
+class LoginData(BaseModel):
+    username: str = Field(min_length=5, max_length=20)
+    password: str = Field(min_length=8, max_length=20)
+
+class CustomerUpdateRequest(BaseModel):
+    name: str = Field(max_length=100, default=None)
+    email: str = Field(max_length=100, default=None)
+    username: str = Field(min_length=5, max_length=20, default=None)
+    password: str = Field(min_length=8, max_length=20, default=None)
 
 class Transaction(BaseModel):
     txn_id: int = None

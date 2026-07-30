@@ -1,5 +1,6 @@
 from bson import Decimal128
 from fastapi import APIRouter, status, HTTPException, Response, Depends
+from pymongo.asynchronous.collection import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from database.database import db_manager, get_db
@@ -17,6 +18,7 @@ api_router = APIRouter(prefix=f"/api/v{api_version}")
 async def create_account(account_details: Account, db = Depends(get_db)):
     try:
         res = await db["accounts"].insert_one(account_details.model_dump())
+        return {"message": "Account created successfully", "id": str(res.inserted_id)}
 
     except DuplicateKeyError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"An account with the same id already exists")
@@ -125,13 +127,13 @@ async def get_transaction_history(account_id: int, db = Depends(get_db)):
 @api_router.patch("/accounts/{account_id}", status_code=status.HTTP_200_OK, response_model=Account)
 async def update_account(account_id: int, update_details: AccountUpdateRequest, db = Depends(get_db)):
     update_object = {}
-    if update_details.account_type is not None: update_object.account_type = update_details.account_type
-    if update_details.balance is not None: update_object.balance = update_details.balance
-    if update_details.account_id is not None: update_object.account_id = update_details.account_id
-    if update_details.user_id is not None: update_object.user_id = update_details.user_id
+    if update_details.account_type is not None: update_object["account_type"] = update_details.account_type
+    if update_details.balance is not None: update_object["balance"] = Decimal128(update_details.balance)
+    if update_details.account_id is not None: update_object["account_id"] = update_details.account_id
+    if update_details.user_id is not None: update_object["user_id"] = update_details.user_id
 
     try:
-        account = await db["accounts"].find_one_and_update({"account_id": account_id}, update_object)
+        account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$set": update_object}, return_document=ReturnDocument.AFTER)
 
         if account is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

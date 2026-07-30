@@ -7,7 +7,7 @@ export type Customer = {
   created_at: string
 }
 
-export type EditParams = {
+export type CustomerBasicParams = {
     name: string
     email: string
     username: string
@@ -17,10 +17,21 @@ export type EditParams = {
 export type EditCustomerModalProps = {
   onCancel: () => void
   onSubmit: (e: React.SubmitEvent<HTMLFormElement>) => void
-  placeholderData: EditParams
+  placeholderData: CustomerBasicParams
 }
 
 export type CreateCustomerModalProps = {
   onCancel: () => void
   onSubmit: (e: React.SubmitEvent<HTMLFormElement>) => void
+}
+
+export type LoginParams = {
+  username: string,
+  password: string
+}
+
+export type LoginResult = {
+  username: string,
+  user_id: number,
+  is_admin: boolean
 }

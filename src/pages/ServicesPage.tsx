@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import type { EditParams, Customer } from '../types/ServiceTypes/services.types'
+import type { CustomerBasicParams, Customer } from '../types/ServiceTypes/services.types'
 import { getCustomers, deleteCustomer, getCustomer, editCustomer, addCustomer } from '../services/customers'
 import EditCustomerModal from '../components/ServicesComponents/EditCustomerModal'
 import CreateCustomerModal from '../components/ServicesComponents/CreateCustomerModal'
@@ -11,7 +11,7 @@ export default function ServicesPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [activeEditId, setActiveEditId] = useState<number>(-1)
-  const [editPlaceholders, setEditPlaceholders] = useState<EditParams>({
+  const [editPlaceholders, setEditPlaceholders] = useState<CustomerBasicParams>({
     name: "",
     email: "",
     username: "",
@@ -66,7 +66,7 @@ export default function ServicesPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
 
-    const newCustomer: EditParams = {
+    const newCustomer: CustomerBasicParams = {
       name: (formData.get('name') as string) || '',
       email: (formData.get('email') as string) || '',
       username: (formData.get('username') as string) || '',

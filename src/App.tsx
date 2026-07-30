@@ -3,7 +3,9 @@ import LandingPage from './pages/LandingPage'
 import ServicesPage from './pages/ServicesPage';
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/services" element={<ServicesPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
     </Routes>
   </BrowserRouter>
   );

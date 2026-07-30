@@ -25,20 +25,6 @@ function LandingPage() {
               Manage everyday spending, save smarter, and access support
               whenever you need it with a trusted digital banking experience.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="#"
-                className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                Open an account
-              </a>
-              <a
-                href="#"
-                className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                Learn more
-              </a>
-            </div>
           </section>
 
           <section className="rounded-2xl bg-slate-900 p-6 text-white shadow-md">

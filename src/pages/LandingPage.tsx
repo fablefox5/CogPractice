@@ -1,5 +1,5 @@
-import Header from '../components/Header'
-import Footer from '../components/Footer'
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 function LandingPage() {
   return (
@@ -15,11 +15,15 @@ function LandingPage() {
             <p className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
               Simple banking for modern life
             </p>
-            <h1 id="hero-heading" className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+            <h1
+              id="hero-heading"
+              className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl"
+            >
               Bank with confidence, grow with clarity.
             </h1>
             <p className="max-w-xl text-lg text-slate-600">
-              Manage everyday spending, save smarter, and access support whenever you need it with a trusted digital banking experience.
+              Manage everyday spending, save smarter, and access support
+              whenever you need it with a trusted digital banking experience.
             </p>
             <div className="flex flex-wrap gap-3">
               <a
@@ -50,7 +54,7 @@ function LandingPage() {
 
       <Footer />
     </div>
-  )
+  );
 }
 
-export default LandingPage
+export default LandingPage;

@@ -1,13 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import type { Customer } from '../types/ServiceTypes/services.types'
-import { getCustomers, deleteCustomer } from '../services/customers'
+import type { EditParams, Customer } from '../types/ServiceTypes/services.types'
+import { getCustomers, deleteCustomer, getCustomer, editCustomer, addCustomer } from '../services/customers'
+import EditCustomerModal from '../components/ServicesComponents/EditCustomerModal'
+import CreateCustomerModal from '../components/ServicesComponents/CreateCustomerModal'
 
 export default function ServicesPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [activeEditId, setActiveEditId] = useState<number>(-1)
+  const [editPlaceholders, setEditPlaceholders] = useState<EditParams>({
+    name: "",
+    email: "",
+    username: "",
+    password: "",
+  })
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false)
+
+
+    
+  useEffect(() => {
+    loadCustomers()
+  }, [])
 
   async function loadCustomers() {
     setErrorMessage(null)
@@ -23,17 +39,73 @@ export default function ServicesPage() {
     }
   }
 
-//   function toggleAdmin(userId: number) {
-//     setCustomers((current) =>
-//       current.map((customer) =>
-//         customer.user_id === userId ? { ...customer, is_admin: !customer.is_admin } : customer,
-//       ),
-//     )
-//   }
+  function cancelEditModal() {
+    setEditPlaceholders({
+      name: "",
+      email: "",
+      username: "",
+      password: "",
+    })
+  }
+  
 
   async function removeCustomer(userId: number) {
-    await deleteCustomer(userId);
-    loadCustomers();
+    await deleteCustomer(userId)
+    loadCustomers()
+  }
+
+  function openCreateModal() {
+    setIsCreateModalOpen(true)
+  }
+
+  function closeCreateModal() {
+    setIsCreateModalOpen(false)
+  }
+
+  async function submitCreate(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+
+    const newCustomer: EditParams = {
+      name: (formData.get('name') as string) || '',
+      email: (formData.get('email') as string) || '',
+      username: (formData.get('username') as string) || '',
+      password: (formData.get('password') as string) || '',
+    }
+
+    try {
+      await addCustomer(newCustomer)
+      closeCreateModal()
+      await loadCustomers()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to add customer right now.')
+    }
+  }
+
+  async function enableEditing(userId: number) {
+    const customer = await getCustomer(userId)
+    setEditPlaceholders(customer)
+    setActiveEditId(userId)
+  }
+
+  async function submitEdit(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData: FormData = new FormData(e.currentTarget)
+    const updatedUsername = formData.get("username") as string
+    const updatedPassword = formData.get("password") as string
+    const updatedName = formData.get("name") as string
+    const updatedEmail = formData.get("email") as string
+
+    await editCustomer(activeEditId, {
+      username: updatedUsername,
+      password: updatedPassword,
+      name: updatedName,
+      email: updatedEmail
+    })
+    
+    cancelEditModal()
+    setActiveEditId(-1)
+    loadCustomers()
   }
 
   return (
@@ -51,13 +123,12 @@ export default function ServicesPage() {
                 Load customer data to view a clean table with controls for editing and deleting records.
               </p>
             </div>
-
             <button
               type="button"
-              onClick={loadCustomers}
-              className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+              onClick={openCreateModal}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
             >
-              Get Customers
+              Add Customer
             </button>
           </div>
 
@@ -72,6 +143,7 @@ export default function ServicesPage() {
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-3 font-semibold">User ID</th>
+                      <th className="px-4 py-3 font-semibold">Username</th>
                       <th className="px-4 py-3 font-semibold">Email</th>
                       <th className="px-4 py-3 font-semibold">Name</th>
                       <th className="px-4 py-3 font-semibold">Is Admin</th>
@@ -83,6 +155,7 @@ export default function ServicesPage() {
                     {customers.map((customer) => (
                       <tr key={customer.user_id} className="hover:bg-slate-50">
                         <td className="px-4 py-3 text-slate-900">{customer.user_id}</td>
+                        <td className="px-4 py-3 text-slate-900">{customer.username}</td>
                         <td className="px-4 py-3 text-slate-700">{customer.email}</td>
                         <td className="px-4 py-3 text-slate-700">{customer.name}</td>
                         <td className="px-4 py-3">
@@ -97,13 +170,13 @@ export default function ServicesPage() {
                         <td className="px-4 py-3 text-slate-700">{customer.created_at}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
-                            {/* <button
+                            <button
                               type="button"
-                              onClick={() => toggleAdmin(customer.user_id)}
+                              onClick={() => enableEditing(customer.user_id)}
                               className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                             >
                               Edit
-                            </button> */}
+                            </button>
                             <button
                               type="button"
                               onClick={() => removeCustomer(customer.user_id)}
@@ -122,6 +195,10 @@ export default function ServicesPage() {
           </div>
         </section>
       </main>
+
+      {editPlaceholders.username.length > 0 && <EditCustomerModal placeholderData={editPlaceholders} onCancel={cancelEditModal} onSubmit={submitEdit}/>}
+
+      {isCreateModalOpen && <CreateCustomerModal onCancel={closeCreateModal} onSubmit={submitCreate} />}
 
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">

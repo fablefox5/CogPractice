@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getStoredAuthUser } from '../services/login-signup'
 import type { LoginResult } from '../types/ServiceTypes/services.types'
-const navItems = ['Home', 'About', 'Services', 'Contact']
+const navItems = ['Home', 'About', 'Services', 'Contact', 'Accounts']
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)

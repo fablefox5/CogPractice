@@ -1,5 +1,25 @@
 const BASE_URL = "http://127.0.0.1:8000/api/v1.0";
 
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  detail?: any;
+
+  constructor(status: number, statusText: string, detail?: any) {
+    const message = typeof detail === "string" 
+      ? detail 
+      : detail?.detail || `Request failed with status ${status}: ${statusText}`;
+
+    super(message);
+
+    this.status = status;
+    this.statusText = statusText;
+    this.detail = detail;
+
+    this.name = "ApiError";
+  }
+}
+
 export default async function request<T>(
   url: string,
   options: RequestInit = {},
@@ -15,10 +35,15 @@ export default async function request<T>(
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Request failed with status ${response.status}: ${errorText || response.statusText}`,
-      );
+      let errorDetail: any;
+
+      try {
+        errorDetail = await response.json();
+      } catch {
+        errorDetail = await response.text();
+      }
+
+      throw new ApiError(response.status, response.statusText, errorDetail)
     }
 
     if (response.status === 204) {
@@ -27,10 +52,13 @@ export default async function request<T>(
 
     return (await response.json()) as T;
   } catch (err) {
-    console.error(
+      console.error(
       `An error has occurred when trying to ${errDescriptor}:`,
-      err instanceof Error ? err.message : "Unknown error",
-    );
+      err instanceof ApiError 
+        ? `[HTTP ${err.status}] ${err.message}` 
+        : err instanceof Error ? err.message : "Unknown error",
+      );
+
     throw err;
   }
 }

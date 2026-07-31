@@ -2,10 +2,10 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 function LandingPage() {
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <Header />
-
       <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <section
           aria-labelledby="hero-heading"

@@ -1,8 +1,6 @@
 import type { Customer, CustomerBasicParams } from "../types/ServiceTypes/services.types";
 import request from "./request";
 
-const BASE_URL = "http://127.0.0.1:8000/api/v1.0";
-
 async function getCustomers(): Promise<Customer[]> {
   const data = await request<Customer[]>("/customers", { method: "GET" }, "get all customers");
 
@@ -17,7 +15,7 @@ async function getCustomer(customer_id: number): Promise<CustomerBasicParams> {
   return request<CustomerBasicParams>(
     `/customers/${customer_id}`,
     { method: "GET" },
-    `get customer ${customer_id}`,
+    `get customer" ${customer_id}`,
   );
 }
 
@@ -28,7 +26,7 @@ async function editCustomer(customer_id: number, editParams: CustomerBasicParams
       method: "PATCH",
       body: JSON.stringify(editParams),
     },
-    `edit customer ${customer_id}`,
+    `edit customer: ${customer_id}`,
   );
 }
 
@@ -36,7 +34,7 @@ async function deleteCustomer(customer_id: number): Promise<boolean> {
   await request<void>(
     `/customers/${customer_id}`,
     { method: "DELETE" },
-    `delete customer ${customer_id}`,
+    `delete customer: ${customer_id}`,
   );
 
   return true;

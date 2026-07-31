@@ -32,6 +32,8 @@ async def create_customer(customer_details: User, db = Depends(get_db)):
             detail=str(e)
         )
 
+
+
 # Get customer based on user id
 @api_router.get("/customers/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
 async def get_customer(user_id: int, db = Depends(get_db)):
@@ -44,6 +46,8 @@ async def get_customer(user_id: int, db = Depends(get_db)):
             )
         else:
             return customer
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -83,6 +87,8 @@ async def update_customer(user_id: int, update_details: CustomerUpdateRequest, d
             )
 
         return customer
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -100,6 +106,8 @@ async def delete_customer(user_id: int, db = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"the customer with id: {user_id} was not found"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 

@@ -5,14 +5,16 @@ from pydantic import BaseModel, Field, BeforeValidator, PlainSerializer, ConfigD
 from decimal import Decimal
 
 def decimal128_to_decimal(value):
+    if isinstance(value, (float, int, str)):
+        return Decimal(str(value))
     if isinstance(value, Decimal128):
         return value.to_decimal()
     return value
 
-def decimal_to_decimal128(value):
-    if isinstance(value, Decimal):
-        return Decimal128(value)
-    return value
+# def decimal_to_decimal128(value):
+#     if isinstance(value, Decimal):
+#         return Decimal128(value)
+#     return value
 
 DecimalType = Annotated[Decimal,
 BeforeValidator(decimal128_to_decimal),
@@ -23,7 +25,7 @@ def current_time():
     return datetime.now(timezone.utc)
 
 class Account(BaseModel):
-    account_id: int
+    account_id: int = None
     user_id: int
     balance: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
     account_type: str = Field(max_length=50)
@@ -45,11 +47,13 @@ class BalanceChangeRequest(BaseModel):
 
 class WithdrawResponse(BaseModel):
     user_id: int
+    account_id: int
     withdraw_amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
     new_balance: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
 
 class DepositResponse(BaseModel):
     user_id: int
+    account_id: int
     deposit_amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
     new_balance: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
 

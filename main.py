@@ -3,6 +3,7 @@ from routers import accounts, users
 from database.database import db_manager
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 # Automatically has database on for lifespan of program, automatic shutdown and start
 @asynccontextmanager
@@ -28,5 +29,6 @@ app.add_middleware(
 app.include_router(accounts.api_router)
 app.include_router(users.api_router)
 
+handler = Mangum(app, lifespan="off")
 # for route in api_router.routes:
 #     print(route.path, route.methods)

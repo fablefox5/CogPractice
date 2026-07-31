@@ -29,7 +29,7 @@ async def create_account(account_details: Account, db = Depends(get_db)):
 
 # Get account based on account id
 @api_router.get("/accounts/{account_id}", status_code=status.HTTP_200_OK, response_model=Account)
-async def get_item(account_id: int, db = Depends(get_db)):
+async def get_account(account_id: int, db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
         if account is None:
@@ -37,6 +37,24 @@ async def get_item(account_id: int, db = Depends(get_db)):
                                 detail=f"the account with id: {account_id} was not found")
         else:
             return account
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+# Get account based on user id
+@api_router.get("/accounts/customer/{user_id}", status_code=status.HTTP_200_OK, response_model=list[Account])
+async def get_user_accounts(user_id: int, db = Depends(get_db)):
+    try:
+        accounts = await db["accounts"].find({"user_id": user_id}).to_list(length=100)
+        if len(accounts) <= 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"accounts with user id: {user_id} was not found")
+        else:
+            return accounts
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -64,7 +82,7 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Insufficient funds")
 
         decimal_amount = Decimal128(data.amount)
-        updated_account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$inc": {"balance": Decimal128(-data.amount)}})
+        updated_account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$inc": {"balance": Decimal128(-data.amount)}}, return_document=ReturnDocument.AFTER)
 
         await db["transactions"].insert_one({
             "account_id": account_id,
@@ -73,15 +91,18 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get
         })
         return WithdrawResponse(
             user_id = account["user_id"],
+            account_id = account["account_id"],
             withdraw_amount = data.amount,
-            new_balance = updated_account["balance"].to_decimal()
+            new_balance = updated_account["balance"]
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # deposit money in given account (through account id)
 @api_router.patch("/accounts/{account_id}/deposit", status_code=status.HTTP_200_OK)
-async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get_db)):
+async def deposit(account_id: int, data: BalanceChangeRequest, db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
 
@@ -94,8 +115,6 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"Invalid deposit amount. Deposit cannot be a negative value.")
 
-        original_balance = account["balance"].to_decimal()
-
         updated_account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$inc": {"balance": Decimal128(data.amount)}})
         await db["transactions"].insert_one({
             "account_id": account_id,
@@ -105,9 +124,12 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get
 
         return DepositResponse(
             user_id = account["user_id"],
+            account_id = account["account_id"],
             deposit_amount = data.amount,
             new_balance = updated_account["balance"]
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -140,6 +162,8 @@ async def update_account(account_id: int, update_details: AccountUpdateRequest, 
                                 detail=f"the account with id: {account_id} was not found")
 
         return account
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
@@ -153,5 +177,7 @@ async def delete_account(account_id: int, db = Depends(get_db)):
             return None
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"the account with id: {account_id} was not found")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

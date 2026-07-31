@@ -5,7 +5,7 @@ from pymongo.errors import DuplicateKeyError
 
 from database.database import get_db
 from lib.fastapi.security import OAuth2PasswordRequestForm
-from schemas import (User, CustomerUpdateRequest, LoginData)
+from schemas import (User, CustomerUpdateRequest, LoginData, NewUser)
 from config import api_version
 from security import hash_password, authenticate_user, create_access_token, require_admin
 
@@ -13,14 +13,13 @@ api_router = APIRouter(prefix=f"/api/v{api_version}")
 
 # Create new customer
 @api_router.post("/customers", status_code=status.HTTP_201_CREATED)
-async def create_user(customer_details: User, db = Depends(get_db)):
+async def create_user(customer_details: NewUser, db = Depends(get_db)):
     try:
         data: dict = customer_details.model_dump()
         data["password"] = hash_password(data["password"])
         res = await db["users"].insert_one(data)
         user = await db["users"].find_one({"_id": res.inserted_id})
         return {
-            "user_id": user["user_id"],
             "username": user["username"],
             "is_admin": user["is_admin"]
         }
@@ -125,11 +124,12 @@ async def login(data: OAuth2PasswordRequestForm = Depends()):
                                 detail='Invalid credentials.',
                                 headers={"WWW-Authenticate": "Bearer"},)
 
-        access_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+        access_token = create_access_token({"sub": user.username, "is_admin": user.is_admin, "user_id": user.user_id})
 
         return {
             "username": user.username,
             "access_token": access_token,
+            "user_id": user.user_id,
             "token_type": "bearer"
             }
     except HTTPException:

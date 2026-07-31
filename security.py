@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM
 from dotenv import load_dotenv
 from database.database import get_user
@@ -67,22 +67,29 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     if not user:
         raise invalid_cred_exception
 
-    return {"username": user.username, "is_admin": getattr(user, "is_admin", False)}
+    return {"username": user.username, "is_admin": getattr(user, "is_admin", False), "user_id": getattr(user, "user_id")}
 
 
-def require_ownership_or_admin(username: str, current_user: dict = Depends(get_current_user)):
-    is_owner = current_user["username"] == username
-    is_admin = current_user["is_admin"] is True
+def verify_ownership_or_admin(owner_user_id: int, current_user: dict):
+    if owner_user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="owner's user_id is required in the body"
+        )
 
-    if not is_owner or is_admin:
+
+    is_owner = current_user.get("user_id") == owner_user_id
+    is_admin = current_user.get("is_admin") is True
+
+    if not (is_admin or is_owner):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden: You can only access your own resource."
         )
-    return current_user
+    # return current_user
 
 def require_admin(payload: dict = Depends(get_current_user)):
-    is_admin = getattr(payload, "is_admin", False)
+    is_admin = payload.get("is_admin", False)
 
     if not is_admin:
         raise HTTPException(

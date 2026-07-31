@@ -7,16 +7,13 @@ from database.database import db_manager, get_db
 from schemas import (Account, WithdrawResponse, DepositResponse, BalanceChangeRequest, Transaction,
                      TransactionResponse, DeleteAccountResponse, AccountUpdateRequest)
 from config import api_version
-from security import get_current_user, require_admin
-
-#temp for hardcoded
-# from database.hardcoded_database import accounts_db, transactions_db
+from security import get_current_user, require_admin, verify_ownership_or_admin
 
 api_router = APIRouter(prefix=f"/api/v{api_version}")
 
 # Create new account
-@api_router.post("/accounts", status_code=status.HTTP_201_CREATED)
-async def create_account(account_details: Account, client_user = Depends(get_current_user), db = Depends(get_db)):
+@api_router.post("/accounts/{user_id}", status_code=status.HTTP_201_CREATED)
+async def create_account(user_id: int, account_details: Account, db = Depends(get_db)):
     try:
         res = await db["accounts"].insert_one(account_details.model_dump())
         return {"message": "Account created successfully", "id": str(res.inserted_id)}
@@ -30,7 +27,7 @@ async def create_account(account_details: Account, client_user = Depends(get_cur
 
 # Get account based on account id
 @api_router.get("/accounts/{account_id}", status_code=status.HTTP_200_OK, response_model=Account)
-async def get_account(account_id: int, db = Depends(get_db)):
+async def get_account(account_id: int, admin_user = Depends(require_admin),  db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
         if account is None:
@@ -46,8 +43,9 @@ async def get_account(account_id: int, db = Depends(get_db)):
 
 # Get account based on user id
 @api_router.get("/accounts/customer/{user_id}", status_code=status.HTTP_200_OK, response_model=list[Account])
-async def get_user_accounts(user_id: int, db = Depends(get_db)):
+async def get_user_accounts(user_id: int, current_user = Depends(get_current_user), db = Depends(get_db)):
     try:
+        verify_ownership_or_admin(user_id, current_user)
         accounts = await db["accounts"].find({"user_id": user_id}).to_list(length=100)
         if len(accounts) <= 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -61,7 +59,7 @@ async def get_user_accounts(user_id: int, db = Depends(get_db)):
 
 # Get all accounts
 @api_router.get("/accounts", status_code=status.HTTP_200_OK, response_model=list[Account])
-async def get_accounts(db = Depends(get_db)):
+async def get_accounts(admin_user = Depends(require_admin), db = Depends(get_db)):
     try:
         all_accounts = await db["accounts"].find({}).to_list(length=100)
         return all_accounts
@@ -70,15 +68,19 @@ async def get_accounts(db = Depends(get_db)):
 
 # withdraw money in given account (through account id)
 @api_router.patch("/accounts/{account_id}/withdraw", status_code=status.HTTP_200_OK)
-async def withdraw(account_id: int, data: BalanceChangeRequest, client_user = Depends(get_current_user), db = Depends(get_db)):
+async def withdraw(account_id: int, data: BalanceChangeRequest, current_user: dict = Depends(get_current_user), db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
 
         if account is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail=f"the account with id: {account_id} was not found")
+        verify_ownership_or_admin(account["user_id"], current_user)
+        original_balance = account["balance"]
 
-        original_balance = account["balance"].to_decimal()
+        if isinstance(original_balance, Decimal128):
+            original_balance = original_balance.to_decimal()
+
         if  original_balance < data.amount:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Insufficient funds")
 
@@ -103,7 +105,7 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, client_user = De
 
 # deposit money in given account (through account id)
 @api_router.patch("/accounts/{account_id}/deposit", status_code=status.HTTP_200_OK)
-async def deposit(account_id: int, data: BalanceChangeRequest, client_user = Depends(get_current_user), db = Depends(get_db)):
+async def deposit(account_id: int, data: BalanceChangeRequest, current_user: dict = Depends(get_current_user), db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
 
@@ -111,12 +113,12 @@ async def deposit(account_id: int, data: BalanceChangeRequest, client_user = Dep
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail=f"the account with id: {account_id} was not found")
 
-
+        verify_ownership_or_admin(account["user_id"], current_user)
         if 0 > data.amount:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"Invalid deposit amount. Deposit cannot be a negative value.")
 
-        updated_account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$inc": {"balance": Decimal128(data.amount)}})
+        updated_account = await db["accounts"].find_one_and_update({"account_id": account_id}, {"$inc": {"balance": Decimal128(data.amount)}}, return_document=ReturnDocument.AFTER)
         await db["transactions"].insert_one({
             "account_id": account_id,
             "txn_type": "DEPOSIT",
@@ -136,19 +138,27 @@ async def deposit(account_id: int, data: BalanceChangeRequest, client_user = Dep
 
 # get all transactions history from a particular account (through account id)
 @api_router.get("/accounts/{account_id}/transactions", status_code=status.HTTP_200_OK, response_model=list[Transaction])
-async def get_transaction_history(account_id: int, db = Depends(get_db)):
+async def get_transaction_history(account_id: int, current_user = Depends(get_current_user), db = Depends(get_db)):
     try:
+        account = await db["accounts"].find_one({"account_id": account_id})
+
+        if account is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"account with id: {account_id} not found")
+
+        verify_ownership_or_admin(account["user_id"], current_user)
         all_transactions = await db["transactions"].find({"account_id": account_id}).to_list(length=100)
         # if all_transactions.count() == 0:
         #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
         #                         detail=f"No transaction history found with given id: {account_id}")
         return all_transactions
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # Update account based on given account id
 @api_router.patch("/accounts/{account_id}", status_code=status.HTTP_200_OK, response_model=Account)
-async def update_account(account_id: int, update_details: AccountUpdateRequest, db = Depends(get_db)):
+async def update_account(account_id: int, update_details: AccountUpdateRequest, admin_user = Depends(require_admin), db = Depends(get_db)):
     update_object = {}
     if update_details.account_type is not None: update_object["account_type"] = update_details.account_type
     if update_details.balance is not None: update_object["balance"] = Decimal128(update_details.balance)

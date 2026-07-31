@@ -60,6 +60,14 @@ class User(BaseModel):
     is_admin: bool = False
     created_at: datetime = Field(default_factory=current_time)
 
+class NewUser(BaseModel):
+    user_id: int = None
+    username: str = Field(min_length=5, max_length=20)
+    password: str = Field(min_length=6, max_length=50)
+    name: str = Field(max_length=100)
+    email: str = Field(max_length=100)
+    is_admin: bool = False
+    created_at: datetime = Field(default_factory=current_time)
 
 class LoginData(BaseModel):
     username: str = Field(min_length=5, max_length=20)
@@ -69,6 +77,7 @@ class HashedLogin(BaseModel):
     username: str = Field(min_length=5, max_length=20)
     hashed_password: str
     is_admin: bool = False
+    user_id: int
 
 class CustomerUpdateRequest(BaseModel):
     name: str = Field(max_length=100, default=None)
@@ -89,6 +98,9 @@ class TransactionResponse(BaseModel):
 
 class DeleteAccountResponse(BaseModel):
     deleted_account_id: int
+
+class OwnershipRequest(BaseModel):
+    user_id: int
 
 class Token(BaseModel):
     access_token: str

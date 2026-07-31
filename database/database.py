@@ -47,14 +47,18 @@ async def get_db():
     return db_manager.db
 
 
-async def get_user(username: str) -> HashedLogin:
+async def get_user(username: str) -> HashedLogin | None:
     db = await get_db()
     user = await db["users"].find_one({"username": username})
+
+    if user is None:
+        return None
 
     return HashedLogin(
         username = user["username"],
         hashed_password = user["password"],
-        is_admin = user["is_admin"]
+        is_admin = user["is_admin"],
+        user_id = user["user_id"]
     )
 
 

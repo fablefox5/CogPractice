@@ -1,0 +1,7 @@
+fastapi
+mangum
+pydantic
+dotenv
+python-jose[cryptography]
+bcrypt==5.0.0
+python-multipart

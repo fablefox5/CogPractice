@@ -7,6 +7,7 @@ from database.database import db_manager, get_db
 from schemas import (Account, WithdrawResponse, DepositResponse, BalanceChangeRequest, Transaction,
                      TransactionResponse, DeleteAccountResponse, AccountUpdateRequest)
 from config import api_version
+from security import get_current_user, require_admin
 
 #temp for hardcoded
 # from database.hardcoded_database import accounts_db, transactions_db
@@ -15,7 +16,7 @@ api_router = APIRouter(prefix=f"/api/v{api_version}")
 
 # Create new account
 @api_router.post("/accounts", status_code=status.HTTP_201_CREATED)
-async def create_account(account_details: Account, db = Depends(get_db)):
+async def create_account(account_details: Account, client_user = Depends(get_current_user), db = Depends(get_db)):
     try:
         res = await db["accounts"].insert_one(account_details.model_dump())
         return {"message": "Account created successfully", "id": str(res.inserted_id)}
@@ -69,7 +70,7 @@ async def get_accounts(db = Depends(get_db)):
 
 # withdraw money in given account (through account id)
 @api_router.patch("/accounts/{account_id}/withdraw", status_code=status.HTTP_200_OK)
-async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get_db)):
+async def withdraw(account_id: int, data: BalanceChangeRequest, client_user = Depends(get_current_user), db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
 
@@ -102,7 +103,7 @@ async def withdraw(account_id: int, data: BalanceChangeRequest, db = Depends(get
 
 # deposit money in given account (through account id)
 @api_router.patch("/accounts/{account_id}/deposit", status_code=status.HTTP_200_OK)
-async def deposit(account_id: int, data: BalanceChangeRequest, db = Depends(get_db)):
+async def deposit(account_id: int, data: BalanceChangeRequest, client_user = Depends(get_current_user), db = Depends(get_db)):
     try:
         account = await db["accounts"].find_one({"account_id": account_id})
 
@@ -169,7 +170,7 @@ async def update_account(account_id: int, update_details: AccountUpdateRequest, 
 
 # Delete account based on given account id
 @api_router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(account_id: int, db = Depends(get_db)):
+async def delete_account(account_id: int, admin_user = Depends(require_admin), db = Depends(get_db)):
     try:
         result = await db["accounts"].delete_one({"account_id": account_id})
 

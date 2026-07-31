@@ -1,24 +1,28 @@
 from bson import Decimal128
-from fastapi import APIRouter, status, HTTPException, Response, Depends
+from fastapi import APIRouter, status, HTTPException, Depends
 from pymongo.asynchronous.collection import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
-from database.database import db_manager, get_db
+from database.database import get_db
+from lib.fastapi.security import OAuth2PasswordRequestForm
 from schemas import (User, CustomerUpdateRequest, LoginData)
 from config import api_version
+from security import hash_password, authenticate_user, create_access_token, require_admin
 
 api_router = APIRouter(prefix=f"/api/v{api_version}")
 
 # Create new customer
 @api_router.post("/customers", status_code=status.HTTP_201_CREATED)
-async def create_customer(customer_details: User, db = Depends(get_db)):
+async def create_user(customer_details: User, db = Depends(get_db)):
     try:
-        res = await db["users"].insert_one(customer_details.model_dump())
-        account = await db["users"].find_one({"_id": res.inserted_id})
+        data: dict = customer_details.model_dump()
+        data["password"] = hash_password(data["password"])
+        res = await db["users"].insert_one(data)
+        user = await db["users"].find_one({"_id": res.inserted_id})
         return {
-            "user_id": account["user_id"],
-            "username": account["username"],
-            "is_admin": account["is_admin"]
+            "user_id": user["user_id"],
+            "username": user["username"],
+            "is_admin": user["is_admin"]
         }
 
     except DuplicateKeyError:
@@ -36,7 +40,7 @@ async def create_customer(customer_details: User, db = Depends(get_db)):
 
 # Get customer based on user id
 @api_router.get("/customers/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
-async def get_customer(user_id: int, db = Depends(get_db)):
+async def get_customer(user_id: int, admin_user: dict = Depends(require_admin),  db = Depends(get_db)):
     try:
         customer = await db["users"].find_one({"user_id": user_id, "is_admin": {"$ne": True}})
         if customer is None:
@@ -56,9 +60,10 @@ async def get_customer(user_id: int, db = Depends(get_db)):
 
 # Get all customers
 @api_router.get("/customers", status_code=status.HTTP_200_OK, response_model=list[User])
-async def get_customers(db = Depends(get_db)):
+async def get_customers(admin_user: dict = Depends(require_admin), db = Depends(get_db)):
     try:
-        all_customers = await db["users"].find({"is_admin": {"$ne": True}}).to_list(length=100)
+        all_customers = await db["users"].find({"is_admin": {"$ne": True}}).to_list()
+
         return all_customers
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -66,12 +71,11 @@ async def get_customers(db = Depends(get_db)):
 
 # Update customer based on given user id
 @api_router.patch("/customers/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
-async def update_customer(user_id: int, update_details: CustomerUpdateRequest, db = Depends(get_db)):
+async def update_customer(user_id: int, update_details: CustomerUpdateRequest, admin_user: dict = Depends(require_admin), db = Depends(get_db)):
     update_object = {}
     if update_details.name is not None: update_object["name"] = update_details.name
     if update_details.email is not None: update_object["email"] = update_details.email
     if update_details.username is not None: update_object["username"] = update_details.username
-    if update_details.password is not None: update_object["password"] = update_details.password
 
     try:
         customer = await db["users"].find_one_and_update(
@@ -95,7 +99,7 @@ async def update_customer(user_id: int, update_details: CustomerUpdateRequest, d
 
 # Delete customer based on given user id
 @api_router.delete("/customers/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_customer(user_id: int, db = Depends(get_db)):
+async def delete_customer(user_id: int, admin_user: dict = Depends(require_admin), db = Depends(get_db)):
     try:
         result = await db["users"].delete_one({"user_id": user_id})
 
@@ -112,18 +116,23 @@ async def delete_customer(user_id: int, db = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @api_router.post("/login", status_code=status.HTTP_200_OK)
-async def login(data: LoginData, db = Depends(get_db)):
+async def login(data: OAuth2PasswordRequestForm = Depends()):
     try:
-        account = await db["users"].find_one({"username": data.username, "password": data.password})
+        user = await authenticate_user(data.username, data.password)
 
-        if account is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invalid credentials.')
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail='Invalid credentials.',
+                                headers={"WWW-Authenticate": "Bearer"},)
+
+        access_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
 
         return {
-            "user_id": account["user_id"],
-            "username": account["username"],
-            "is_admin": account["is_admin"]
+            "username": user.username,
+            "access_token": access_token,
+            "token_type": "bearer"
             }
-
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

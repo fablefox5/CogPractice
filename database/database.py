@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 import os
+from fastapi import Depends, HTTPException, status
 from pymongo import AsyncMongoClient
 from logging import info
+from schemas import LoginData, HashedLogin
 
 load_dotenv()
 
@@ -43,3 +45,16 @@ async def get_db():
     if db_manager.client is None:
         await db_manager.connect()
     return db_manager.db
+
+
+async def get_user(username: str) -> HashedLogin:
+    db = await get_db()
+    user = await db["users"].find_one({"username": username})
+
+    return HashedLogin(
+        username = user["username"],
+        hashed_password = user["password"],
+        is_admin = user["is_admin"]
+    )
+
+

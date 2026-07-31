@@ -11,11 +11,6 @@ def decimal128_to_decimal(value):
         return value.to_decimal()
     return value
 
-# def decimal_to_decimal128(value):
-#     if isinstance(value, Decimal):
-#         return Decimal128(value)
-#     return value
-
 DecimalType = Annotated[Decimal,
 BeforeValidator(decimal128_to_decimal),
 PlainSerializer(lambda v: float(v), return_type=float, when_used="always"),
@@ -60,21 +55,25 @@ class DepositResponse(BaseModel):
 class User(BaseModel):
     user_id: int = None
     username: str = Field(min_length=5, max_length=20)
-    password: str = Field(min_length=8, max_length=20)
     name: str = Field(max_length=100)
     email: str = Field(max_length=100)
     is_admin: bool = False
     created_at: datetime = Field(default_factory=current_time)
 
+
 class LoginData(BaseModel):
     username: str = Field(min_length=5, max_length=20)
-    password: str = Field(min_length=8, max_length=20)
+    password: str = Field(min_length=8, max_length=50)
+
+class HashedLogin(BaseModel):
+    username: str = Field(min_length=5, max_length=20)
+    hashed_password: str
+    is_admin: bool = False
 
 class CustomerUpdateRequest(BaseModel):
     name: str = Field(max_length=100, default=None)
     email: str = Field(max_length=100, default=None)
     username: str = Field(min_length=5, max_length=20, default=None)
-    password: str = Field(min_length=8, max_length=20, default=None)
 
 class Transaction(BaseModel):
     txn_id: int = None
@@ -90,3 +89,7 @@ class TransactionResponse(BaseModel):
 
 class DeleteAccountResponse(BaseModel):
     deleted_account_id: int
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

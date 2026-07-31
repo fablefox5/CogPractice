@@ -10,6 +10,9 @@ from mangum import Mangum
 async def lifespan(app_instance: FastAPI):
     await db_manager.connect()
     await db_manager.db["accounts"].create_index("account_id", unique=True)
+    await db_manager.db["users"].create_index("user_id", unique=True)
+    await db_manager.db["users"].create_index("username", unique=True)
+    await db_manager.db["users"].create_index("email", unique=True)
     yield
     await db_manager.client.close()
 

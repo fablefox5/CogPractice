@@ -29,6 +29,11 @@ class Account(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
 
+class AccountCreateRequest(BaseModel):
+    balance: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
+    account_type: str = Field(max_length=50)
+    created_at: datetime = Field(default_factory=current_time)
+
 class AccountUpdateRequest(BaseModel):
     account_id: int = None
     user_id: int = None
@@ -69,6 +74,10 @@ class NewUser(BaseModel):
     is_admin: bool = False
     created_at: datetime = Field(default_factory=current_time)
 
+class BasicUserData(BaseModel):
+    username: str = Field(min_length=5, max_length=20)
+    is_admin: bool = False
+
 class LoginData(BaseModel):
     username: str = Field(min_length=5, max_length=20)
     password: str = Field(min_length=8, max_length=50)
@@ -83,16 +92,29 @@ class CustomerUpdateRequest(BaseModel):
     name: str = Field(max_length=100, default=None)
     email: str = Field(max_length=100, default=None)
     username: str = Field(min_length=5, max_length=20, default=None)
+    password: str = Field(min_length=6, max_length=50)
+
+class TransferRequest(BaseModel):
+    source_account_id: int
+    destination_account_id: int
+    amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
+
+class TransferResponse(BaseModel):
+    source_account_id: int
+    destination_account_id: int
+    amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
+    source_account_balance: DecimalType = Field(max_digits=10, decimal_places=2)
+    destination_account_balance: DecimalType = Field(max_digits=10, decimal_places=2)
 
 class Transaction(BaseModel):
     txn_id: int = None
     account_id: int
-    txn_type:  str = Field(max_length=20)
+    txn_type:  str = Field(max_length=50)
     amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
     created_at: datetime = Field(default_factory=current_time)
 
 class TransactionResponse(BaseModel):
-    txn_type:  str = Field(max_length=20)
+    txn_type:  str = Field(max_length=50)
     amount: DecimalType = Field(max_digits=10, decimal_places=2, default=Decimal("0.0"))
     created_at: datetime
 

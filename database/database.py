@@ -1,3 +1,5 @@
+from datetime import timezone
+
 from dotenv import load_dotenv
 import os
 from fastapi import Depends, HTTPException, status
@@ -20,7 +22,7 @@ class DatabaseManager:
         if not uri:
             raise RuntimeError("MONGODB_URI environment variable missing")
 
-        self.client = AsyncMongoClient(uri)
+        self.client = AsyncMongoClient(uri, tz_aware=True)
         self.db = self.client["bank"]
         ping_response = await self.db.command("ping")
 

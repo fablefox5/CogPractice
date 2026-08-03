@@ -1,11 +1,6 @@
-import Header from '../components/Header'
-import Footer from '../components/Footer'
-
 function AboutPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Header />
-
       <main className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10 lg:p-12">
           <p className="mb-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
@@ -40,8 +35,6 @@ function AboutPage() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   )
 }

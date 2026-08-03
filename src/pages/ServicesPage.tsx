@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
-import type { CustomerBasicParams, Customer } from '../types/ServiceTypes/services.types'
+import type { Account, CustomerBasicParams, Customer, EditUserAccountRequest } from '../types/ServiceTypes/services.types'
 import { getCustomers, deleteCustomer, getCustomer, editCustomer, addCustomer } from '../services/customers'
+import { editAccount, getCustomerAccounts } from '../services/accounts'
 import EditCustomerModal from '../components/ServicesComponents/EditCustomerModal'
 import CreateCustomerModal from '../components/ServicesComponents/CreateCustomerModal'
+import EditUserAccountsModal from '../components/ServicesComponents/EditUserAccountsModal'
 
 export default function ServicesPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -18,8 +18,31 @@ export default function ServicesPage() {
     password: "",
   })
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false)
+  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState<boolean>(false)
+  const [activeAccountUser, setActiveAccountUser] = useState<{ userId: number; username: string } | null>(null)
+  const [customerAccounts, setCustomerAccounts] = useState<Account[]>([])
+  const [isAccountsLoading, setIsAccountsLoading] = useState<boolean>(false)
+  const [isAccountUpdateSubmitting, setIsAccountUpdateSubmitting] = useState<boolean>(false)
+  const [accountsModalError, setAccountsModalError] = useState<string | null>(null)
 
+  function formatDate(value: Date | string | undefined) {
+    if (!value) {
+      return '—'
+    }
 
+    try {
+      return new Date(value).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        })
+    } catch {
+      return '—'
+    }
+  }
     
   useEffect(() => {
     loadCustomers()
@@ -52,6 +75,53 @@ export default function ServicesPage() {
   async function removeCustomer(userId: number) {
     await deleteCustomer(userId)
     loadCustomers()
+  }
+
+  async function loadSelectedUserAccounts(userId: number) {
+    setAccountsModalError(null)
+    setIsAccountsLoading(true)
+
+    try {
+      const accounts = await getCustomerAccounts(userId)
+      setCustomerAccounts(accounts)
+    } catch (error) {
+      setCustomerAccounts([])
+      setAccountsModalError(error instanceof Error ? error.message : 'Unable to load customer accounts right now.')
+    } finally {
+      setIsAccountsLoading(false)
+    }
+  }
+
+  async function openAccountsModal(userId: number, username: string) {
+    setIsAccountsModalOpen(true)
+    setActiveAccountUser({ userId, username })
+    await loadSelectedUserAccounts(userId)
+  }
+
+  function closeAccountsModal() {
+    setIsAccountsModalOpen(false)
+    setActiveAccountUser(null)
+    setCustomerAccounts([])
+    setAccountsModalError(null)
+  }
+
+  async function submitAccountEdit({ accountId, details }: EditUserAccountRequest) {
+    setIsAccountUpdateSubmitting(true)
+    setAccountsModalError(null)
+
+    try {
+      await editAccount(accountId, details)
+
+      if (activeAccountUser) {
+        await loadSelectedUserAccounts(activeAccountUser.userId)
+      }
+    } catch (error) {
+      const updateError = error instanceof Error ? error : new Error('Unable to update account details right now.')
+      setAccountsModalError(updateError.message)
+      throw updateError
+    } finally {
+      setIsAccountUpdateSubmitting(false)
+    }
   }
 
   function openCreateModal() {
@@ -110,8 +180,6 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Header />
-
       <main className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10 lg:p-12">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -167,9 +235,16 @@ export default function ServicesPage() {
                             {customer.is_admin ? 'Yes' : 'No'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{customer.created_at}</td>
+                        <td className="px-4 py-3 text-slate-700">{formatDate(customer.created_at)}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void openAccountsModal(customer.user_id, customer.username)}
+                              className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                            >
+                              Manage Accounts
+                            </button>
                             <button
                               type="button"
                               onClick={() => enableEditing(customer.user_id)}
@@ -199,6 +274,22 @@ export default function ServicesPage() {
       {editPlaceholders.username.length > 0 && <EditCustomerModal placeholderData={editPlaceholders} onCancel={cancelEditModal} onSubmit={submitEdit}/>}
 
       {isCreateModalOpen && <CreateCustomerModal onCancel={closeCreateModal} onSubmit={submitCreate} />}
+
+      {isAccountsModalOpen && activeAccountUser && (
+        <EditUserAccountsModal
+          userId={activeAccountUser.userId}
+          username={activeAccountUser.username}
+          accounts={customerAccounts}
+          isLoading={isAccountsLoading}
+          isSubmitting={isAccountUpdateSubmitting}
+          errorMessage={accountsModalError}
+          onClose={closeAccountsModal}
+          onRefresh={async () => {
+            await loadSelectedUserAccounts(activeAccountUser.userId)
+          }}
+          onSubmit={submitAccountEdit}
+        />
+      )}
 
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
@@ -234,8 +325,6 @@ export default function ServicesPage() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   )
 }

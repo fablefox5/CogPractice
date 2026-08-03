@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Footer from '../components/Footer'
-import Header from '../components/Header'
+import TransferModal from '../components/ServicesComponents/TransferModal'
+import CreateAccountModal from '../components/ServicesComponents/CreateAccountModal'
 import TransactionHistoryTable from '../components/TransactionHistoryTable'
-import { deposit, getCustomerAccounts, getTransactions, withdraw } from '../services/accounts'
-import { getStoredAuthUser } from '../services/login-signup'
-import type { Account, LoginResult, Transaction } from '../types/ServiceTypes/services.types'
+import { addAccount, deposit, getMyAccounts, getTransactions, transfer, withdraw } from '../services/accounts'
+import type { Account, AccountBasicParams, Transaction, TransferRequest, TransferResponse, UserBasicParams } from '../types/ServiceTypes/services.types'
+import { getSelf } from '../services/customers'
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-US', {
@@ -16,7 +16,7 @@ function formatCurrency(value: number) {
 
 function AccountsPage() {
   const navigate = useNavigate()
-  const [authUser, setAuthUser] = useState<LoginResult | null>(null)
+  const [authUser, setAuthUser] = useState<UserBasicParams | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -24,35 +24,40 @@ function AccountsPage() {
   const [transactionLoading, setTransactionLoading] = useState(false)
   const [amount, setAmount] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isTransactionSubmitting, setIsTransactionSubmitting] = useState(false)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+  const [isTransferSubmitting, setIsTransferSubmitting] = useState(false)
+  const [isAccountCreationOpen, setIsAccountCreationOpen] = useState(false)
+  const [isAccountCreationSubmitting, setIsAccountCreationSubmitting] = useState(false)
 
   useEffect(() => {
-    const user = getStoredAuthUser()
 
-    if (!user) {
-      navigate('/login')
-      return
+    async function getSelfData() {
+      const selfData = await getSelf();
+
+      if (!selfData) {
+        navigate('/login')
+        return
+      }
+
+      if(selfData.is_admin) {
+        navigate('/');
+      }
+
+      setAuthUser(selfData);
     }
 
-    setAuthUser(user)
+    getSelfData();
+
   }, [navigate])
 
-  useEffect(() => {
-    if (!authUser) {
-      return
-    }
-
-    let isActive = true
-
-    async function loadAccounts() {
+  async function loadAccounts(controller?: AbortController) {
       setLoading(true)
 
       try {
-        const userAccounts = await getCustomerAccounts(authUser.user_id)
-
-        if (!isActive) {
-          return
-        }
+        const userAccounts = await getMyAccounts({signal: controller?.signal})
+        
+        if(controller?.signal?.aborted) return
 
         setAccounts(userAccounts)
 
@@ -70,24 +75,30 @@ function AccountsPage() {
           return userAccounts[0].account_id
         })
       } catch (error) {
-        if (!isActive) {
-          return
-        }
-
+        if(error instanceof Error && error.name === 'AbortError') return
         setFeedback(error instanceof Error ? error.message : 'Unable to load accounts right now.')
       } finally {
-        if (isActive) {
-          setLoading(false)
-        }
+        if (!controller?.signal?.aborted) {
+        setLoading(false)
+      }
       }
     }
 
-    void loadAccounts()
+
+  useEffect(() => {
+    if (!authUser) {
+      return
+    }
+
+    const controller = new AbortController();
+
+    loadAccounts(controller);
 
     return () => {
-      isActive = false
+      controller.abort()
     }
-  }, [authUser, transactions])
+
+  }, [authUser])
 
   useEffect(() => {
     if (!selectedAccountId) {
@@ -101,13 +112,15 @@ function AccountsPage() {
       setTransactionLoading(true)
 
       try {
+        if(selectedAccountId === null) return;
+
         const history = await getTransactions(selectedAccountId)
 
         if (!isActive) {
           return
         }
 
-        setTransactions(history)
+        setTransactions(history.toReversed())
       } catch (error) {
         if (!isActive) {
           return
@@ -121,7 +134,7 @@ function AccountsPage() {
       }
     }
 
-    void loadTransactions()
+    loadTransactions()
 
     return () => {
       isActive = false
@@ -142,7 +155,7 @@ function AccountsPage() {
       return
     }
 
-    setIsSubmitting(true)
+    setIsTransactionSubmitting(true)
     setFeedback(null)
 
     try {
@@ -167,18 +180,80 @@ function AccountsPage() {
 
       setAmount('')
       const history = await getTransactions(selectedAccountId)
-      setTransactions(history)
+      setTransactions(history.toReversed())
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to complete that transaction right now.')
     } finally {
-      setIsSubmitting(false)
+      setIsTransactionSubmitting(false)
+      loadAccounts()
+    }
+  }
+
+  function openTransferModal() {
+    if (accounts.length < 2) {
+      setFeedback('At least two accounts are required to transfer funds.')
+      return
+    }
+
+    setIsTransferModalOpen(true)
+  }
+
+  function closeTransferModal() {
+    setIsTransferModalOpen(false)
+  }
+
+  function openCreationModal() {
+    if(accounts.length > 10) {
+      setFeedback('You cannot create more than 10 accounts. Please contact an Admin for help if needed.')
+    }
+    else {
+      setIsAccountCreationOpen(true)
+    }
+  }
+
+  function closeCreationModal() {
+    setIsAccountCreationOpen(false)
+  }
+
+  async function submitAccountCreate(accountDetails: AccountBasicParams) {
+    setIsAccountCreationSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const response = await addAccount(accountDetails)
+
+      return response
+    } catch (error) {
+        const creationError = error instanceof Error ? error : new Error('Unable to create new account right now.')
+        setFeedback(creationError.message)
+        throw creationError
+    } finally {
+      setIsAccountCreationSubmitting(false)
+      closeCreationModal()
+      loadAccounts()
+    }
+  }
+
+  async function submitTransfer({ sourceAccountId, destinationAccountId, amount: transferAmount }: TransferRequest): Promise<TransferResponse> {
+    setIsTransferSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const response = await transfer(sourceAccountId, destinationAccountId, transferAmount)
+
+      return response
+    } catch (error) {
+      const transferError = error instanceof Error ? error : new Error('Unable to transfer funds right now.')
+      setFeedback(transferError.message)
+      throw transferError
+    } finally {
+      setIsTransferSubmitting(false)
+      loadAccounts()
     }
   }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Header />
-
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
         <div className="mb-8">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Your accounts</p>
@@ -193,7 +268,7 @@ function AccountsPage() {
             {feedback}
           </div>
         )}
-
+        
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between">
@@ -201,6 +276,9 @@ function AccountsPage() {
                 <h2 className="text-lg font-semibold text-slate-900">Current accounts</h2>
                 <p className="mt-1 text-sm text-slate-600">Choose an account to manage it.</p>
               </div>
+              <button onClick={openCreationModal} className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 max-w-50 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                Create Account
+              </button>
             </div>
 
             {loading ? (
@@ -216,14 +294,14 @@ function AccountsPage() {
                 <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Account</th>
+                      <th className="px-4 py-3 font-medium">Account ID</th>
                       <th className="px-4 py-3 font-medium">Type</th>
                       <th className="px-4 py-3 font-medium">Balance</th>
                       <th className="px-4 py-3 font-medium">Opened</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {accounts.map((account, index) => {
+                    {accounts.map((account) => {
                       const isSelected = account.account_id === selectedAccountId
 
                       return (
@@ -232,7 +310,7 @@ function AccountsPage() {
                           onClick={() => setSelectedAccountId(account.account_id)}
                           className={`cursor-pointer transition ${isSelected ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                         >
-                          <td className="px-4 py-3 font-semibold text-slate-900">#{index+1}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-900">{account.account_id}</td>
                           <td className="px-4 py-3 capitalize text-slate-700">{account.account_type}</td>
                           <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(account.balance)}</td>
                           <td className="px-4 py-3 text-slate-600">
@@ -289,20 +367,28 @@ function AccountsPage() {
                     <button
                       type="button"
                       onClick={() => void handleTransaction('deposit')}
-                      disabled={isSubmitting}
+                      disabled={isTransactionSubmitting}
                       className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400"
                     >
-                      {isSubmitting ? 'Processing...' : 'Deposit'}
+                      {isTransactionSubmitting ? 'Processing...' : 'Deposit'}
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleTransaction('withdraw')}
-                      disabled={isSubmitting}
+                      disabled={isTransactionSubmitting}
                       className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                     >
-                      {isSubmitting ? 'Processing...' : 'Withdraw'}
+                      {isTransactionSubmitting ? 'Processing...' : 'Withdraw'}
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={openTransferModal}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Transfer Between Accounts
+                  </button>
                 </div>
               )}
             </div>
@@ -316,7 +402,23 @@ function AccountsPage() {
         </div>
       </main>
 
-      <Footer />
+      {isTransferModalOpen && (
+        <TransferModal
+          accounts={accounts}
+          initialSourceAccountId={selectedAccountId}
+          onCancel={closeTransferModal}
+          onSubmit={submitTransfer}
+          isSubmitting={isTransferSubmitting}
+        />
+      )}
+
+      {(isAccountCreationOpen || (accounts.length <= 0 && !loading)) && (
+        <CreateAccountModal
+          onCancel={closeCreationModal}
+          onSubmit={submitAccountCreate}
+          isSubmitting={isAccountCreationSubmitting}
+         />
+      )}
     </div>
   )
 }

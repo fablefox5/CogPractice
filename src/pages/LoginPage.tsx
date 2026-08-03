@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
 import { login } from '../services/login-signup'
+import { useAuth } from '../context/AuthContext'
+import { getSelf } from '../services/customers'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const auth = useAuth()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function handleLoginAttempt(e: React.SubmitEvent<HTMLFormElement>) {
@@ -15,8 +16,11 @@ function LoginPage() {
     const password = formData.get('password') as string
 
     try {
-      await login(username, password)
-      navigate('/')
+      const result = await login(username, password)
+      auth?.login(result.access_token);
+      
+      const selfData = await getSelf();
+      navigate(selfData.is_admin ? '/services' : '/accounts')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to log in right now.')
     }
@@ -24,8 +28,6 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Header />
-
       <main className="mx-auto flex max-w-5xl items-center justify-center px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="mb-8">
@@ -42,6 +44,8 @@ function LoginPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                 placeholder="Enter username"
                 name="username"
+                minLength={5}
+                maxLength={20}
               />
             </div>
 
@@ -52,6 +56,8 @@ function LoginPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                 placeholder="Enter password"
                 name="password"
+                minLength={6}
+                maxLength={14}
               />
             </div>
 
@@ -77,8 +83,6 @@ function LoginPage() {
           </p>
         </section>
       </main>
-
-      <Footer />
     </div>
   )
 }

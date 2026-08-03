@@ -19,10 +19,14 @@ function formatDate(value: Date | string | undefined) {
   }
 
   try {
-    return new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value))
+    return new Date(value).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
   } catch {
     return '—'
   }
@@ -63,7 +67,7 @@ function TransactionHistoryTable({ transactions, loading = false, accountId }: T
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {transactions.map((transaction) => {
-              const isDeposit = transaction.txn_type?.toLowerCase() === 'deposit'
+              const isDeposit = transaction.txn_type?.toLowerCase().startsWith('deposit')
               const amountLabel = `${isDeposit ? '+' : '-'}${formatCurrency(transaction.amount)}`
 
               return (

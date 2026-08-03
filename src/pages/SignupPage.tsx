@@ -1,26 +1,48 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
-import { signup } from '../services/login-signup'
+import { signup, login } from '../services/login-signup'
+import { useAuth } from '../context/AuthContext'
+import { getSelf } from '../services/customers'
 
 function SignupPage() {
   const navigate = useNavigate()
+  const auth = useAuth()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function handleSignupAttempt(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-
+    const username = (formData.get('username') as string) || ''
+    const password = (formData.get('password') as string) || ''
     try {
+
+      if (username.length < 5 || username.length > 20) {
+        setErrorMessage('Username must be between 5 and 20 characters.')
+        return
+      }
+
+      if (password.length < 6 || password.length > 14) {
+        setErrorMessage('Password must be between 6 and 14 characters.')
+        return
+      }
+
       await signup({
         name: (formData.get('name') as string) || '',
         email: (formData.get('email') as string) || '',
-        username: (formData.get('username') as string) || '',
-        password: (formData.get('password') as string) || '',
+        username: username,
+        password: password,
       })
 
-      navigate('/')
+    try {
+      const result = await login(username, password)
+      auth?.login(result.access_token)
+      
+      const selfData = await getSelf()
+      navigate(selfData.is_admin ? '/services' : '/accounts')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to log in right now.')
+    }
+
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to create account right now.')
     }
@@ -28,7 +50,6 @@ function SignupPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Header />
 
       <main className="mx-auto flex max-w-5xl items-center justify-center px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -46,6 +67,8 @@ function SignupPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                 placeholder="Enter your full name"
                 name="name"
+                minLength={1}
+                maxLength={100}
               />
             </div>
 
@@ -101,8 +124,6 @@ function SignupPage() {
           </p>
         </section>
       </main>
-
-      <Footer />
     </div>
   )
 }

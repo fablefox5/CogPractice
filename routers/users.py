@@ -4,7 +4,7 @@ from pymongo.asynchronous.collection import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from database.database import get_db
-from lib.fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from schemas import (User, CustomerUpdateRequest, LoginData, NewUser, BasicUserData)
 from config import api_version
 from security import hash_password, authenticate_user, create_access_token, require_admin, get_current_user

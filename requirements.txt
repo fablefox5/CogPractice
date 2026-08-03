@@ -2,6 +2,8 @@ fastapi
 mangum
 pydantic
 dotenv
+python-dotenv
 python-jose[cryptography]
-bcrypt==5.0.0
+bcrypt
 python-multipart
+pymongo

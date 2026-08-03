@@ -36,6 +36,7 @@ export type EditCustomerModalProps = {
 export type CreateCustomerModalProps = {
   onCancel: () => void
   onSubmit: (e: React.SubmitEvent<HTMLFormElement>) => void
+  errorMessage: string | null
 }
 
 export type CreateAccountModalProps = {

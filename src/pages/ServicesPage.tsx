@@ -24,6 +24,7 @@ export default function ServicesPage() {
   const [isAccountsLoading, setIsAccountsLoading] = useState<boolean>(false)
   const [isAccountUpdateSubmitting, setIsAccountUpdateSubmitting] = useState<boolean>(false)
   const [accountsModalError, setAccountsModalError] = useState<string | null>(null)
+  const [createModalError, setCreateModalError] = useState<string | null>(null)
 
   function formatDate(value: Date | string | undefined) {
     if (!value) {
@@ -125,30 +126,44 @@ export default function ServicesPage() {
   }
 
   function openCreateModal() {
+    setCreateModalError(null)
     setIsCreateModalOpen(true)
   }
 
   function closeCreateModal() {
+    setCreateModalError(null)
     setIsCreateModalOpen(false)
   }
 
   async function submitCreate(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
+    setCreateModalError(null)
     const formData = new FormData(e.currentTarget)
 
     const newCustomer: CustomerBasicParams = {
-      name: (formData.get('name') as string) || '',
-      email: (formData.get('email') as string) || '',
-      username: (formData.get('username') as string) || '',
-      password: (formData.get('password') as string) || '',
+      name: (formData.get('name') as string).trim() || '',
+      email: (formData.get('email') as string).trim() || '',
+      username: (formData.get('username') as string).trim() || '',
+      password: (formData.get('password') as string).trim() || '',
     }
+
+      if (newCustomer.username.length < 5 || newCustomer.username.length > 20) {
+        setCreateModalError('Username must be between 5 and 20 characters.')
+        return
+      }
+
+      if (newCustomer.password.length < 6 || newCustomer.password.length > 14) {
+        setCreateModalError('Password must be between 6 and 14 characters.')
+        return
+      }
+
 
     try {
       await addCustomer(newCustomer)
       closeCreateModal()
       await loadCustomers()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to add customer right now.')
+      setCreateModalError(error instanceof Error ? error.message : 'Unable to add customer right now.')
     }
   }
 
@@ -273,7 +288,13 @@ export default function ServicesPage() {
 
       {editPlaceholders.username.length > 0 && <EditCustomerModal placeholderData={editPlaceholders} onCancel={cancelEditModal} onSubmit={submitEdit}/>}
 
-      {isCreateModalOpen && <CreateCustomerModal onCancel={closeCreateModal} onSubmit={submitCreate} />}
+      {isCreateModalOpen && (
+        <CreateCustomerModal
+          onCancel={closeCreateModal}
+          onSubmit={submitCreate}
+          errorMessage={createModalError}
+        />
+      )}
 
       {isAccountsModalOpen && activeAccountUser && (
         <EditUserAccountsModal

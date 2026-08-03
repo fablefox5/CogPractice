@@ -1,4 +1,4 @@
-const BASE_URL = "http://127.0.0.1:8000/api/v1.0";
+const BASE_URL = "https://sgncna7cppmiwpiym7umj4siya0xmlhv.lambda-url.us-east-1.on.aws/api/v1.0";
 
 export class ApiError extends Error {
   status: number;

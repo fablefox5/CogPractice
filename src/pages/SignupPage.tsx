@@ -12,8 +12,8 @@ function SignupPage() {
   async function handleSignupAttempt(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    const username = (formData.get('username') as string) || ''
-    const password = (formData.get('password') as string) || ''
+    const username = (formData.get('username') as string).trim() || ''
+    const password = (formData.get('password') as string).trim() || ''
     try {
 
       if (username.length < 5 || username.length > 20) {
@@ -27,8 +27,8 @@ function SignupPage() {
       }
 
       await signup({
-        name: (formData.get('name') as string) || '',
-        email: (formData.get('email') as string) || '',
+        name: (formData.get('name') as string).trim() || '',
+        email: (formData.get('email') as string).trim() || '',
         username: username,
         password: password,
       })
